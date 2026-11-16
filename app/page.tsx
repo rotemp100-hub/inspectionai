@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 // מסך ראשי – RP Inspection AI
 // שלב 1: מסך בית בעברית (RTL). המודולים מסומנים "בקרוב" עד שנבנה אותם.
 
@@ -6,6 +8,7 @@ type Module = {
   description: string;
   icon: string;
   status: "בקרוב" | "פעיל";
+  href?: string;
 };
 
 const modules: Module[] = [
@@ -13,7 +16,8 @@ const modules: Module[] = [
     title: "תוכניות ומסמכים",
     description: "העלאת תוכניות PDF, צפייה בשרטוטים וסידור לפי תחום.",
     icon: "📐",
-    status: "בקרוב",
+    status: "פעיל",
+    href: "/plans",
   },
   {
     title: "חישובי כמויות",
@@ -91,21 +95,39 @@ export default function Home() {
         {/* מודולים */}
         <h2 className="mt-10 mb-4 text-xl font-bold">מודולים</h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {modules.map((m) => (
+          {modules.map((m) => {
+            const card = (
             <div
-              key={m.title}
-              className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
+              className={`h-full rounded-xl border bg-white p-5 shadow-sm ${
+                m.href
+                  ? "border-amber-300 transition hover:border-amber-500 hover:shadow-md"
+                  : "border-slate-200 opacity-80"
+              }`}
             >
               <div className="flex items-start justify-between">
                 <span className="text-3xl">{m.icon}</span>
-                <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs text-slate-500">
+                <span
+                  className={`rounded-full px-2.5 py-0.5 text-xs ${
+                    m.status === "פעיל"
+                      ? "bg-emerald-100 text-emerald-700"
+                      : "bg-slate-100 text-slate-500"
+                  }`}
+                >
                   {m.status}
                 </span>
               </div>
               <h3 className="mt-3 text-lg font-semibold">{m.title}</h3>
               <p className="mt-1 text-sm leading-6 text-slate-600">{m.description}</p>
             </div>
-          ))}
+            );
+            return m.href ? (
+              <Link key={m.title} href={m.href}>
+                {card}
+              </Link>
+            ) : (
+              <div key={m.title}>{card}</div>
+            );
+          })}
         </div>
 
         {/* עקרון העבודה */}
