@@ -1,22 +1,24 @@
 "use client";
 
-// מסך תוכניות ומסמכים – שלב 1
-// העלאת קבצי PDF, סיווג לפי תחום וצפייה בתוכנית.
-// בשלב זה הקבצים נשמרים רק בדפדפן; שמירה קבועה תתווסף עם Supabase.
+// מסך תוכניות ומסמכים – שלב 2
+// הקבצים נשמרים ב-Supabase Storage, ופרטי התוכניות בטבלת plans.
 
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { PLANS_BUCKET, supabase } from "../../lib/supabase";
 
 const DISCIPLINES = ["אדריכלות", "קונסטרוקציה", "מערכות", "לא מסווג"] as const;
 type Discipline = (typeof DISCIPLINES)[number];
 
-type PlanFile = {
+const MAX_BYTES = 50 * 1024 * 1024; // מגבלת התוכנית החינמית
+
+type Plan = {
   id: string;
   name: string;
-  size: number;
-  url: string;
   discipline: Discipline;
-  uploadedAt: Date;
+  storage_path: string;
+  size_bytes: number;
+  created_at: string;
 };
 
 // ניחוש ראשוני של התחום לפי שם הקובץ. המשתמש תמיד יכול לשנות.
@@ -42,47 +44,148 @@ const disciplineColor: Record<Discipline, string> = {
 };
 
 export default function PlansPage() {
-  const [plans, setPlans] = useState<PlanFile[]>([]);
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [viewUrl, setViewUrl] = useState<string | null>(null);
+  const [viewLoading, setViewLoading] = useState(false);
   const [filter, setFilter] = useState<Discipline | "הכול">("הכול");
   const [dragging, setDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const blobCache = useRef<Map<string, string>>(new Map());
 
-  function addFiles(fileList: FileList | null) {
+  // טעינת רשימת התוכניות מהשרת
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      const { data, error } = await supabase
+        .from("plans")
+        .select("*")
+        .order("created_at", { ascending: true });
+      if (cancelled) return;
+      if (error) setError(`שגיאה בטעינת התוכניות: ${error.message}`);
+      else {
+        setPlans(data as Plan[]);
+        if (data.length > 0) setSelectedId(data[0].id);
+      }
+      setLoading(false);
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // הורדת הקובץ הנבחר לצפייה
+  useEffect(() => {
+    const plan = plans.find((p) => p.id === selectedId);
+    if (!plan) {
+      setViewUrl(null);
+      return;
+    }
+    const cached = blobCache.current.get(plan.id);
+    if (cached) {
+      setViewUrl(cached);
+      return;
+    }
+    let cancelled = false;
+    setViewLoading(true);
+    supabase.storage
+      .from(PLANS_BUCKET)
+      .download(plan.storage_path)
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (error || !data) {
+          setError(`לא הצלחתי לפתוח את ${plan.name}: ${error?.message ?? ""}`);
+          setViewUrl(null);
+        } else {
+          const url = URL.createObjectURL(new Blob([data], { type: "application/pdf" }));
+          blobCache.current.set(plan.id, url);
+          setViewUrl(url);
+        }
+        setViewLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedId, plans]);
+
+  async function addFiles(fileList: FileList | null) {
     if (!fileList || fileList.length === 0) return;
     const files = Array.from(fileList);
-    const pdfs = files.filter(
-      (f) => f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf"),
-    );
-    const rejected = files.length - pdfs.length;
-    setError(rejected > 0 ? `${rejected} קבצים נדחו – אפשר להעלות רק קבצי PDF.` : null);
-    if (pdfs.length === 0) return;
-
-    const newPlans: PlanFile[] = pdfs.map((f) => ({
-      id: crypto.randomUUID(),
-      name: f.name,
-      size: f.size,
-      url: URL.createObjectURL(f),
-      discipline: guessDiscipline(f.name),
-      uploadedAt: new Date(),
-    }));
-    setPlans((prev) => [...prev, ...newPlans]);
-    setSelectedId((prev) => prev ?? newPlans[0].id);
-  }
-
-  function removePlan(id: string) {
-    setPlans((prev) => {
-      const target = prev.find((p) => p.id === id);
-      if (target) URL.revokeObjectURL(target.url);
-      const rest = prev.filter((p) => p.id !== id);
-      if (selectedId === id) setSelectedId(rest[0]?.id ?? null);
-      return rest;
+    const problems: string[] = [];
+    const ok = files.filter((f) => {
+      const isPdf = f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf");
+      if (!isPdf) problems.push(`${f.name} אינו PDF`);
+      else if (f.size > MAX_BYTES) problems.push(`${f.name} גדול מ-50MB`);
+      return isPdf && f.size <= MAX_BYTES;
     });
+    setError(problems.length ? `לא הועלו: ${problems.join(", ")}` : null);
+
+    for (const f of ok) {
+      setUploading(f.name);
+      // שם קובץ באנגלית בלבד באחסון (Supabase לא מקבל עברית בשמות), השם המקורי נשמר בטבלה
+      const path = `${crypto.randomUUID()}.pdf`;
+      const up = await supabase.storage
+        .from(PLANS_BUCKET)
+        .upload(path, f, { contentType: "application/pdf" });
+      if (up.error) {
+        problems.push(`${f.name}: ${up.error.message}`);
+        continue;
+      }
+      const { data, error } = await supabase
+        .from("plans")
+        .insert({
+          name: f.name,
+          discipline: guessDiscipline(f.name),
+          storage_path: path,
+          size_bytes: f.size,
+        })
+        .select()
+        .single();
+      if (error || !data) {
+        await supabase.storage.from(PLANS_BUCKET).remove([path]);
+        problems.push(`${f.name}: ${error?.message ?? "שגיאה בשמירה"}`);
+        continue;
+      }
+      blobCache.current.set(data.id, URL.createObjectURL(f));
+      setPlans((prev) => [...prev, data as Plan]);
+      setSelectedId(data.id);
+    }
+    setUploading(null);
+    if (problems.length) setError(`לא הועלו: ${problems.join(", ")}`);
   }
 
-  function setDiscipline(id: string, discipline: Discipline) {
+  async function removePlan(plan: Plan) {
+    if (!window.confirm(`למחוק את "${plan.name}"? אי אפשר לשחזר.`)) return;
+    const st = await supabase.storage.from(PLANS_BUCKET).remove([plan.storage_path]);
+    if (st.error) {
+      setError(`שגיאה במחיקה: ${st.error.message}`);
+      return;
+    }
+    const { error } = await supabase.from("plans").delete().eq("id", plan.id);
+    if (error) {
+      setError(`שגיאה במחיקה: ${error.message}`);
+      return;
+    }
+    const cached = blobCache.current.get(plan.id);
+    if (cached) URL.revokeObjectURL(cached);
+    blobCache.current.delete(plan.id);
+    const rest = plans.filter((p) => p.id !== plan.id);
+    setPlans(rest);
+    if (selectedId === plan.id) setSelectedId(rest[0]?.id ?? null);
+  }
+
+  async function setDiscipline(id: string, discipline: Discipline) {
+    const before = plans;
     setPlans((prev) => prev.map((p) => (p.id === id ? { ...p, discipline } : p)));
+    const { error } = await supabase.from("plans").update({ discipline }).eq("id", id);
+    if (error) {
+      setPlans(before);
+      setError(`שגיאה בעדכון התחום: ${error.message}`);
+    }
   }
 
   const visible = filter === "הכול" ? plans : plans.filter((p) => p.discipline === filter);
@@ -127,18 +230,32 @@ export default function PlansPage() {
             onDrop={(e) => {
               e.preventDefault();
               setDragging(false);
-              addFiles(e.dataTransfer.files);
+              if (!uploading) addFiles(e.dataTransfer.files);
             }}
-            onClick={() => inputRef.current?.click()}
-            className={`cursor-pointer rounded-xl border-2 border-dashed p-6 text-center transition-colors ${
+            onClick={() => !uploading && inputRef.current?.click()}
+            className={`rounded-xl border-2 border-dashed p-6 text-center transition-colors ${
+              uploading ? "cursor-wait" : "cursor-pointer"
+            } ${
               dragging
                 ? "border-amber-500 bg-amber-50"
                 : "border-slate-300 bg-white hover:border-amber-400"
             }`}
           >
-            <div className="text-4xl">📤</div>
-            <p className="mt-2 font-semibold">גרור לכאן קבצי PDF</p>
-            <p className="text-sm text-slate-500">או לחץ לבחירת קבצים מהמחשב</p>
+            {uploading ? (
+              <>
+                <div className="text-4xl">⏳</div>
+                <p className="mt-2 font-semibold">מעלה…</p>
+                <p className="truncate text-sm text-slate-500" dir="auto">
+                  {uploading}
+                </p>
+              </>
+            ) : (
+              <>
+                <div className="text-4xl">📤</div>
+                <p className="mt-2 font-semibold">גרור לכאן קבצי PDF</p>
+                <p className="text-sm text-slate-500">או לחץ לבחירת קבצים · עד 50MB לקובץ</p>
+              </>
+            )}
             <input
               ref={inputRef}
               type="file"
@@ -153,7 +270,12 @@ export default function PlansPage() {
           </div>
 
           {error && (
-            <div className="rounded-lg bg-red-50 px-4 py-2 text-sm text-red-700">{error}</div>
+            <div className="flex items-start justify-between gap-2 rounded-lg bg-red-50 px-4 py-2 text-sm text-red-700">
+              <span>{error}</span>
+              <button type="button" onClick={() => setError(null)}>
+                ✕
+              </button>
+            </div>
           )}
 
           {/* סינון לפי תחום */}
@@ -176,7 +298,12 @@ export default function PlansPage() {
 
           {/* רשימת קבצים */}
           <ul className="flex flex-col gap-2">
-            {visible.length === 0 && (
+            {loading && (
+              <li className="rounded-lg bg-white p-4 text-center text-sm text-slate-400 ring-1 ring-slate-200">
+                טוען תוכניות…
+              </li>
+            )}
+            {!loading && visible.length === 0 && (
               <li className="rounded-lg bg-white p-4 text-center text-sm text-slate-400 ring-1 ring-slate-200">
                 {plans.length === 0 ? "עדיין לא הועלו תוכניות" : "אין קבצים בתחום הזה"}
               </li>
@@ -194,16 +321,19 @@ export default function PlansPage() {
                     <div className="truncate font-medium" dir="auto" title={p.name}>
                       📄 {p.name}
                     </div>
-                    <div className="text-xs text-slate-400">{formatSize(p.size)}</div>
+                    <div className="text-xs text-slate-400">
+                      {formatSize(p.size_bytes)} ·{" "}
+                      {new Date(p.created_at).toLocaleDateString("he-IL")}
+                    </div>
                   </div>
                   <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      removePlan(p.id);
+                      removePlan(p);
                     }}
                     className="text-slate-400 hover:text-red-600"
-                    title="הסרה"
+                    title="מחיקה"
                   >
                     ✕
                   </button>
@@ -225,8 +355,7 @@ export default function PlansPage() {
           </ul>
 
           <p className="text-xs leading-5 text-slate-400">
-            בשלב זה הקבצים נשמרים רק בדפדפן ונעלמים ברענון הדף. שמירה קבועה תתווסף כשנחבר את
-            Supabase.
+            ☁️ התוכניות נשמרות בענן (Supabase) ונשארות גם אחרי רענון.
           </p>
         </aside>
 
@@ -244,12 +373,18 @@ export default function PlansPage() {
                   {selected.discipline}
                 </span>
               </div>
-              <iframe
-                key={selected.id}
-                src={selected.url}
-                title={selected.name}
-                className="w-full flex-1"
-              />
+              {viewLoading || !viewUrl ? (
+                <div className="flex flex-1 items-center justify-center text-slate-400">
+                  {viewLoading ? "פותח תוכנית…" : "לא ניתן להציג את הקובץ"}
+                </div>
+              ) : (
+                <iframe
+                  key={selected.id}
+                  src={viewUrl}
+                  title={selected.name}
+                  className="w-full flex-1"
+                />
+              )}
             </>
           ) : (
             <div className="flex flex-1 flex-col items-center justify-center text-slate-400">
