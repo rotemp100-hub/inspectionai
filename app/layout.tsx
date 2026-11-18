@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import { Heebo } from "next/font/google";
+import Script from "next/script";
+import { themeInitScript } from "../lib/theme";
+import SplashScreen from "./components/SplashScreen";
 import "./globals.css";
 
 // גופן עברי נקי וקריא
@@ -15,8 +18,21 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="he" dir="rtl" className={`${heebo.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col">{children}</body>
+    // suppressHydrationWarning: סקריפט העיצוב מוסיף מאפייני data לפני ש-React נטען
+    <html
+      lang="he"
+      dir="rtl"
+      className={`${heebo.variable} h-full antialiased`}
+      suppressHydrationWarning
+    >
+      <body className="min-h-full flex flex-col">
+        {/* מחיל את ערכת העיצוב השמורה לפני ההצגה הראשונה, בלי הבהוב */}
+        <Script id="theme-init" strategy="beforeInteractive">
+          {themeInitScript}
+        </Script>
+        <SplashScreen />
+        {children}
+      </body>
     </html>
   );
 }

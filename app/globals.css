@@ -1,18 +1,264 @@
 @import "tailwindcss";
 
+/* dark: מופעל לפי data-mode על <html>, לא לפי המערכת ישירות */
+@custom-variant dark (&:where([data-mode="dark"], [data-mode="dark"] *));
+
+/* ===== בסיס: מצב בהיר ===== */
 :root {
-  --background: #f5f6f8;
-  --foreground: #1c2430;
+  color-scheme: light;
+  --bg: #f5f6f8;
+  --surface: #ffffff;
+  --surface-2: #f1f5f9;
+  --border: #e2e8f0;
+  --border-strong: #cbd5e1;
+  --fg: #1c2430;
+  --muted: #475569;
+  --subtle: #94a3b8;
+
+  --success-soft: #d1fae5;
+  --success-fg: #047857;
+  --danger-soft: #fef2f2;
+  --danger-fg: #b91c1c;
+
+  /* ערכת ברירת מחדל: כתום בנייה */
+  --accent: #d97706;
+  --accent-hover: #b45309;
+  --accent-fg: #ffffff;
+  --accent-soft: #fef3c7;
+  --accent-soft-fg: #78350f;
+  --hero-bg: #1e293b;
+  --hero-fg: #ffffff;
+  --hero-muted: #cbd5e1;
+  --hero-accent: #fcd34d;
+  --hero-pattern: none;
+}
+
+/* ===== בסיס: מצב כהה ===== */
+:root[data-mode="dark"] {
+  color-scheme: dark;
+  --bg: #0d1117;
+  --surface: #161b22;
+  --surface-2: #1f2630;
+  --border: #2a323d;
+  --border-strong: #3a4452;
+  --fg: #e6edf3;
+  --muted: #a3afbd;
+  --subtle: #6b7684;
+
+  --success-soft: rgba(52, 211, 153, 0.14);
+  --success-fg: #6ee7b7;
+  --danger-soft: rgba(248, 113, 113, 0.14);
+  --danger-fg: #fca5a5;
+
+  --accent: #f59e0b;
+  --accent-hover: #fbbf24;
+  --accent-fg: #1c1305;
+  --accent-soft: rgba(245, 158, 11, 0.12);
+  --accent-soft-fg: #fcd34d;
+  --hero-bg: #1c2433;
+  --hero-fg: #f8fafc;
+  --hero-muted: #a3afbd;
+  --hero-accent: #fbbf24;
+}
+
+/* ===== שרטוט כחול ===== */
+:root[data-palette="blueprint"] {
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --accent-fg: #ffffff;
+  --accent-soft: #dbeafe;
+  --accent-soft-fg: #1e3a8a;
+  --hero-bg: #0f2a4a;
+  --hero-muted: #bfd3ea;
+  --hero-accent: #93c5fd;
+  --hero-pattern:
+    linear-gradient(rgba(147, 197, 253, 0.12) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(147, 197, 253, 0.12) 1px, transparent 1px);
+  /* פינות חדות – מרגיש כמו גיליון שרטוט */
+  --radius-lg: 0.25rem;
+  --radius-xl: 0.25rem;
+  --radius-2xl: 0.375rem;
+}
+:root[data-palette="blueprint"][data-mode="dark"] {
+  --bg: #0a1220;
+  --surface: #0f1a2b;
+  --surface-2: #16233a;
+  --border: #1f3150;
+  --border-strong: #2c4570;
+  --accent: #60a5fa;
+  --accent-hover: #93c5fd;
+  --accent-fg: #06101f;
+  --accent-soft: rgba(96, 165, 250, 0.14);
+  --accent-soft-fg: #93c5fd;
+  --hero-bg: #0c2242;
+}
+
+/* ===== ירוק אתר ===== */
+:root[data-palette="site"] {
+  --accent: #059669;
+  --accent-hover: #047857;
+  --accent-fg: #ffffff;
+  --accent-soft: #d1fae5;
+  --accent-soft-fg: #064e3b;
+  --hero-bg: #14332a;
+  --hero-muted: #b7d6c9;
+  --hero-accent: #6ee7b7;
+}
+:root[data-palette="site"][data-mode="dark"] {
+  --bg: #0b1311;
+  --surface: #121c19;
+  --surface-2: #1a2723;
+  --border: #253631;
+  --border-strong: #344a43;
+  --accent: #34d399;
+  --accent-hover: #6ee7b7;
+  --accent-fg: #04221a;
+  --accent-soft: rgba(52, 211, 153, 0.13);
+  --accent-soft-fg: #6ee7b7;
+  --hero-bg: #13302a;
+}
+
+/* ===== בטון ואדום ===== */
+:root[data-palette="concrete"] {
+  --bg: #f2f2f0;
+  --surface-2: #ececea;
+  --border: #e0dfdc;
+  --border-strong: #c9c7c3;
+  --fg: #232323;
+  --muted: #57534e;
+  --subtle: #a8a29e;
+  --accent: #dc2626;
+  --accent-hover: #b91c1c;
+  --accent-fg: #ffffff;
+  --accent-soft: #fee2e2;
+  --accent-soft-fg: #7f1d1d;
+  --hero-bg: #27272a;
+  --hero-muted: #d4d4d8;
+  --hero-accent: #fca5a5;
+  /* פינות רכות ומעוגלות יותר */
+  --radius-lg: 0.75rem;
+  --radius-xl: 1.125rem;
+  --radius-2xl: 1.5rem;
+}
+:root[data-palette="concrete"][data-mode="dark"] {
+  --bg: #121212;
+  --surface: #1c1c1c;
+  --surface-2: #262626;
+  --border: #303030;
+  --border-strong: #404040;
+  --fg: #ededed;
+  --muted: #b0aca7;
+  --subtle: #737373;
+  --accent: #f87171;
+  --accent-hover: #fca5a5;
+  --accent-fg: #2a0707;
+  --accent-soft: rgba(248, 113, 113, 0.13);
+  --accent-soft-fg: #fca5a5;
+  --hero-bg: #232323;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-subtle: var(--subtle);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-fg: var(--accent-fg);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-soft-fg: var(--accent-soft-fg);
+  --color-hero: var(--hero-bg);
+  --color-hero-fg: var(--hero-fg);
+  --color-hero-muted: var(--hero-muted);
+  --color-hero-accent: var(--hero-accent);
+  --color-success-soft: var(--success-soft);
+  --color-success-fg: var(--success-fg);
+  --color-danger-soft: var(--danger-soft);
+  --color-danger-fg: var(--danger-fg);
   --font-sans: var(--font-heebo);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--bg);
+  color: var(--fg);
   font-family: var(--font-heebo), Arial, sans-serif;
+  transition:
+    background-color 0.25s ease,
+    color 0.25s ease;
+}
+
+.hero-pattern {
+  background-image: var(--hero-pattern);
+  background-size: 24px 24px;
+}
+
+/* ===== מסך פתיחה ===== */
+@keyframes splash-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes splash-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes splash-bar {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+/* רשת ביטחון: אם ה-JS לא נטען, המסך נעלם בכל זאת */
+@keyframes splash-failsafe {
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+.splash {
+  animation: splash-failsafe 0.4s ease 6s forwards;
+  transition: opacity 0.45s ease;
+}
+.splash[data-leaving="true"] {
+  opacity: 0;
+  pointer-events: none;
+}
+.splash-logo {
+  animation: splash-pop 0.6s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+.splash-text {
+  animation: splash-rise 0.5s ease 0.25s both;
+}
+.splash-bar {
+  transform-origin: right; /* RTL: מתמלא מימין לשמאל */
+  animation: splash-bar 2s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .splash-logo,
+  .splash-text,
+  .splash-bar {
+    animation: none;
+  }
+  body {
+    transition: none;
+  }
 }

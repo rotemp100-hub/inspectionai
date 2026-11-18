@@ -6,6 +6,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { PLANS_BUCKET, supabase } from "../../lib/supabase";
+import ThemePicker from "../components/ThemePicker";
 
 const DISCIPLINES = ["אדריכלות", "קונסטרוקציה", "מערכות", "לא מסווג"] as const;
 type Discipline = (typeof DISCIPLINES)[number];
@@ -37,10 +38,10 @@ function formatSize(bytes: number): string {
 }
 
 const disciplineColor: Record<Discipline, string> = {
-  אדריכלות: "bg-sky-100 text-sky-800",
-  קונסטרוקציה: "bg-orange-100 text-orange-800",
-  מערכות: "bg-emerald-100 text-emerald-800",
-  "לא מסווג": "bg-slate-100 text-slate-600",
+  אדריכלות: "bg-sky-100 text-sky-800 dark:bg-sky-400/15 dark:text-sky-300",
+  קונסטרוקציה: "bg-orange-100 text-orange-800 dark:bg-orange-400/15 dark:text-orange-300",
+  מערכות: "bg-emerald-100 text-emerald-800 dark:bg-emerald-400/15 dark:text-emerald-300",
+  "לא מסווג": "bg-surface-2 text-muted",
 };
 
 export default function PlansPage() {
@@ -195,30 +196,33 @@ export default function PlansPage() {
   return (
     <div className="flex flex-1 flex-col">
       {/* כותרת */}
-      <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+      <header className="border-b border-border bg-surface">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6">
           <div className="flex items-center gap-3">
             <Link
               href="/"
-              className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-500 text-lg font-bold text-white"
+              className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent text-lg font-bold text-accent-fg"
             >
               RP
             </Link>
             <div>
               <h1 className="text-lg font-bold leading-tight">תוכניות ומסמכים</h1>
-              <div className="text-xs text-slate-500">
+              <div className="text-xs text-muted">
                 {plans.length} קבצים · {countOf("אדריכלות")} אדריכלות ·{" "}
                 {countOf("קונסטרוקציה")} קונסטרוקציה · {countOf("מערכות")} מערכות
               </div>
             </div>
           </div>
-          <Link href="/" className="text-sm text-slate-600 hover:text-slate-900">
-            → חזרה למסך הראשי
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link href="/" className="hidden text-sm text-muted hover:text-fg sm:inline">
+              → חזרה למסך הראשי
+            </Link>
+            <ThemePicker />
+          </div>
         </div>
       </header>
 
-      <main className="mx-auto grid w-full max-w-7xl flex-1 gap-6 px-6 py-6 lg:grid-cols-[380px_1fr]">
+      <main className="mx-auto grid w-full max-w-7xl flex-1 gap-6 px-4 py-6 sm:px-6 lg:grid-cols-[380px_1fr]">
         {/* עמודה ימנית: העלאה ורשימה */}
         <aside className="flex flex-col gap-4">
           <div
@@ -237,15 +241,15 @@ export default function PlansPage() {
               uploading ? "cursor-wait" : "cursor-pointer"
             } ${
               dragging
-                ? "border-amber-500 bg-amber-50"
-                : "border-slate-300 bg-white hover:border-amber-400"
+                ? "border-accent bg-accent-soft"
+                : "border-border-strong bg-surface hover:border-accent"
             }`}
           >
             {uploading ? (
               <>
                 <div className="text-4xl">⏳</div>
                 <p className="mt-2 font-semibold">מעלה…</p>
-                <p className="truncate text-sm text-slate-500" dir="auto">
+                <p className="truncate text-sm text-muted" dir="auto">
                   {uploading}
                 </p>
               </>
@@ -253,7 +257,7 @@ export default function PlansPage() {
               <>
                 <div className="text-4xl">📤</div>
                 <p className="mt-2 font-semibold">גרור לכאן קבצי PDF</p>
-                <p className="text-sm text-slate-500">או לחץ לבחירת קבצים · עד 50MB לקובץ</p>
+                <p className="text-sm text-muted">או לחץ לבחירת קבצים · עד 50MB לקובץ</p>
               </>
             )}
             <input
@@ -270,7 +274,7 @@ export default function PlansPage() {
           </div>
 
           {error && (
-            <div className="flex items-start justify-between gap-2 rounded-lg bg-red-50 px-4 py-2 text-sm text-red-700">
+            <div className="flex items-start justify-between gap-2 rounded-lg bg-danger-soft px-4 py-2 text-sm text-danger-fg">
               <span>{error}</span>
               <button type="button" onClick={() => setError(null)}>
                 ✕
@@ -287,8 +291,8 @@ export default function PlansPage() {
                 onClick={() => setFilter(d)}
                 className={`rounded-full px-3 py-1 text-sm ${
                   filter === d
-                    ? "bg-slate-800 text-white"
-                    : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"
+                    ? "bg-fg text-bg"
+                    : "bg-surface text-muted ring-1 ring-border hover:bg-surface-2"
                 }`}
               >
                 {d}
@@ -299,12 +303,12 @@ export default function PlansPage() {
           {/* רשימת קבצים */}
           <ul className="flex flex-col gap-2">
             {loading && (
-              <li className="rounded-lg bg-white p-4 text-center text-sm text-slate-400 ring-1 ring-slate-200">
+              <li className="rounded-lg bg-surface p-4 text-center text-sm text-subtle ring-1 ring-border">
                 טוען תוכניות…
               </li>
             )}
             {!loading && visible.length === 0 && (
-              <li className="rounded-lg bg-white p-4 text-center text-sm text-slate-400 ring-1 ring-slate-200">
+              <li className="rounded-lg bg-surface p-4 text-center text-sm text-subtle ring-1 ring-border">
                 {plans.length === 0 ? "עדיין לא הועלו תוכניות" : "אין קבצים בתחום הזה"}
               </li>
             )}
@@ -312,8 +316,8 @@ export default function PlansPage() {
               <li
                 key={p.id}
                 onClick={() => setSelectedId(p.id)}
-                className={`cursor-pointer rounded-lg bg-white p-3 ring-1 transition ${
-                  p.id === selectedId ? "ring-2 ring-amber-500" : "ring-slate-200 hover:ring-slate-300"
+                className={`cursor-pointer rounded-lg bg-surface p-3 ring-1 transition ${
+                  p.id === selectedId ? "ring-2 ring-accent" : "ring-border hover:ring-border-strong"
                 }`}
               >
                 <div className="flex items-start justify-between gap-2">
@@ -321,7 +325,7 @@ export default function PlansPage() {
                     <div className="truncate font-medium" dir="auto" title={p.name}>
                       📄 {p.name}
                     </div>
-                    <div className="text-xs text-slate-400">
+                    <div className="text-xs text-subtle">
                       {formatSize(p.size_bytes)} ·{" "}
                       {new Date(p.created_at).toLocaleDateString("he-IL")}
                     </div>
@@ -332,7 +336,7 @@ export default function PlansPage() {
                       e.stopPropagation();
                       removePlan(p);
                     }}
-                    className="text-slate-400 hover:text-red-600"
+                    className="text-subtle hover:text-danger-fg"
                     title="מחיקה"
                   >
                     ✕
@@ -354,16 +358,16 @@ export default function PlansPage() {
             ))}
           </ul>
 
-          <p className="text-xs leading-5 text-slate-400">
+          <p className="text-xs leading-5 text-subtle">
             ☁️ התוכניות נשמרות בענן (Supabase) ונשארות גם אחרי רענון.
           </p>
         </aside>
 
         {/* עמודה שמאלית: צפייה בתוכנית */}
-        <section className="flex min-h-[70vh] flex-col overflow-hidden rounded-xl bg-white ring-1 ring-slate-200">
+        <section className="flex min-h-[70vh] flex-col overflow-hidden rounded-xl bg-surface ring-1 ring-border">
           {selected ? (
             <>
-              <div className="flex items-center justify-between border-b border-slate-200 px-4 py-2">
+              <div className="flex items-center justify-between border-b border-border px-4 py-2">
                 <span className="truncate font-medium" dir="auto">
                   {selected.name}
                 </span>
@@ -374,7 +378,7 @@ export default function PlansPage() {
                 </span>
               </div>
               {viewLoading || !viewUrl ? (
-                <div className="flex flex-1 items-center justify-center text-slate-400">
+                <div className="flex flex-1 items-center justify-center text-subtle">
                   {viewLoading ? "פותח תוכנית…" : "לא ניתן להציג את הקובץ"}
                 </div>
               ) : (
@@ -387,7 +391,7 @@ export default function PlansPage() {
               )}
             </>
           ) : (
-            <div className="flex flex-1 flex-col items-center justify-center text-slate-400">
+            <div className="flex flex-1 flex-col items-center justify-center text-subtle">
               <div className="text-5xl">📐</div>
               <p className="mt-3">בחר או העלה תוכנית כדי לצפות בה</p>
             </div>
